@@ -93,7 +93,12 @@ Notes from research:
 # Conversation management utilities
 
 import tiktoken
+from typing import TYPE_CHECKING
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+
+if TYPE_CHECKING:
+    from agent.state import OverallState
+    from agent.configuration import Configuration
 
 
 def count_conversation_tokens(messages: list[BaseMessage]) -> int:
@@ -178,5 +183,6 @@ def create_conversation_messages(state) -> list[BaseMessage]:
         messages.insert(0, summary_message)
     
     return messages
+
 
 
