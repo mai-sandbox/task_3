@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional, Annotated
+from typing import Any, Optional, Annotated, List
 import operator
+from langchain_core.messages import BaseMessage
 
 
 DEFAULT_EXTRACTION_SCHEMA = {
@@ -86,6 +87,12 @@ class OverallState:
 
     reflection_steps_taken: int = field(default=0)
     "Number of times the reflection node has been executed"
+    
+    conversation_history: Annotated[List[BaseMessage], operator.add] = field(default_factory=list)
+    "Conversation history with automatic summarization"
+    
+    conversation_summarized: bool = field(default=False)
+    "Flag indicating if conversation has been summarized in current iteration"
 
 
 @dataclass(kw_only=True)

@@ -12,12 +12,14 @@ from pydantic import BaseModel, Field
 from agent.configuration import Configuration
 from agent.state import InputState, OutputState, OverallState
 from agent.utils import deduplicate_sources, format_sources, format_all_notes
+from agent.conversation import ConversationManager
 from agent.prompts import (
     EXTRACTION_PROMPT,
     REFLECTION_PROMPT,
     INFO_PROMPT,
     QUERY_WRITER_PROMPT,
 )
+from langchain_core.messages import HumanMessage, AIMessage
 
 # LLMs
 
@@ -28,6 +30,13 @@ rate_limiter = InMemoryRateLimiter(
 )
 claude_3_5_sonnet = ChatAnthropic(
     model="claude-3-5-sonnet-latest", temperature=0, rate_limiter=rate_limiter
+)
+
+# Initialize conversation manager
+conversation_manager = ConversationManager(
+    max_tokens=20000,
+    summary_trigger_ratio=0.8,
+    preserve_recent_messages=5
 )
 
 # Search
@@ -54,11 +63,21 @@ class ReflectionOutput(BaseModel):
     reasoning: str = Field(description="Brief explanation of the assessment")
 
 
-def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
+async def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
     """Generate search queries based on the user input and extraction schema."""
     # Get configuration
     configurable = Configuration.from_runnable_config(config)
     max_search_queries = configurable.max_search_queries
+
+    # Check and manage conversation history
+    context = {
+        "company": state.company,
+        "extraction_schema": state.extraction_schema,
+        "info": state.info or {},
+    }
+    managed_history = await conversation_manager.manage_conversation_history(
+        state.conversation_history, context
+    )
 
     # Generate search queries
     structured_llm = claude_3_5_sonnet.with_structured_output(Queries)
@@ -71,10 +90,13 @@ def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, A
         max_search_queries=max_search_queries,
     )
 
+    # Add user message to history
+    user_msg = HumanMessage(content="Generate search queries for company research")
+    
     # Generate queries
     results = cast(
         Queries,
-        structured_llm.invoke(
+        await structured_llm.ainvoke(
             [
                 {"role": "system", "content": query_instructions},
                 {
@@ -85,9 +107,19 @@ def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, A
         ),
     )
 
+    # Add AI response to history
+    ai_msg = AIMessage(content=f"Generated {len(results.queries)} search queries: {', '.join(results.queries)}")
+    
+    # Update conversation history
+    new_history = managed_history + [user_msg, ai_msg]
+    
     # Queries
     query_list = [query for query in results.queries]
-    return {"search_queries": query_list}
+    return {
+        "search_queries": query_list,
+        "conversation_history": new_history,
+        "conversation_summarized": len(managed_history) < len(state.conversation_history)
+    }
 
 
 async def research_company(
@@ -125,6 +157,16 @@ async def research_company(
         deduplicated_search_docs, max_tokens_per_source=1000, include_raw_content=True
     )
 
+    # Check and manage conversation history
+    context = {
+        "company": state.company,
+        "extraction_schema": state.extraction_schema,
+        "info": state.info or {},
+    }
+    managed_history = await conversation_manager.manage_conversation_history(
+        state.conversation_history, context
+    )
+    
     # Generate structured notes relevant to the extraction schema
     p = INFO_PROMPT.format(
         info=json.dumps(state.extraction_schema, indent=2),
@@ -132,9 +174,22 @@ async def research_company(
         company=state.company,
         user_notes=state.user_notes,
     )
+    
+    # Add research action to history
+    user_msg = HumanMessage(content=f"Researching {len(state.search_queries)} queries about {state.company}")
+    
     result = await claude_3_5_sonnet.ainvoke(p)
+    
+    # Add AI response to history
+    ai_msg = AIMessage(content=f"Completed research and found relevant information from {len(deduplicated_search_docs)} sources")
+    
+    # Update conversation history
+    new_history = managed_history + [user_msg, ai_msg]
+    
     state_update = {
         "completed_notes": [str(result.content)],
+        "conversation_history": new_history,
+        "conversation_summarized": len(managed_history) < len(state.conversation_history)
     }
     if configurable.include_search_results:
         state_update["search_results"] = deduplicated_search_docs
@@ -142,18 +197,31 @@ async def research_company(
     return state_update
 
 
-def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
+async def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
     """Gather notes from the web search and extract the schema fields."""
+    
+    # Check and manage conversation history
+    context = {
+        "company": state.company,
+        "extraction_schema": state.extraction_schema,
+        "info": state.info or {},
+    }
+    managed_history = await conversation_manager.manage_conversation_history(
+        state.conversation_history, context
+    )
 
     # Format all notes
     notes = format_all_notes(state.completed_notes)
+    
+    # Add extraction action to history
+    user_msg = HumanMessage(content="Extracting structured information from research notes")
 
     # Extract schema fields
     system_prompt = EXTRACTION_PROMPT.format(
         info=json.dumps(state.extraction_schema, indent=2), notes=notes
     )
     structured_llm = claude_3_5_sonnet.with_structured_output(state.extraction_schema)
-    result = structured_llm.invoke(
+    result = await structured_llm.ainvoke(
         [
             {"role": "system", "content": system_prompt},
             {
@@ -162,12 +230,37 @@ def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
             },
         ]
     )
-    return {"info": result}
+    
+    # Add AI response to history
+    ai_msg = AIMessage(content=f"Extracted structured information: {json.dumps(result, indent=2)}")
+    
+    # Update conversation history
+    new_history = managed_history + [user_msg, ai_msg]
+    
+    return {
+        "info": result,
+        "conversation_history": new_history,
+        "conversation_summarized": len(managed_history) < len(state.conversation_history)
+    }
 
 
-def reflection(state: OverallState) -> dict[str, Any]:
+async def reflection(state: OverallState) -> dict[str, Any]:
     """Reflect on the extracted information and generate search queries to find missing information."""
+    
+    # Check and manage conversation history
+    context = {
+        "company": state.company,
+        "extraction_schema": state.extraction_schema,
+        "info": state.info or {},
+    }
+    managed_history = await conversation_manager.manage_conversation_history(
+        state.conversation_history, context
+    )
+    
     structured_llm = claude_3_5_sonnet.with_structured_output(ReflectionOutput)
+    
+    # Add reflection action to history
+    user_msg = HumanMessage(content="Reflecting on extracted information completeness")
 
     # Format reflection prompt
     system_prompt = REFLECTION_PROMPT.format(
@@ -178,21 +271,36 @@ def reflection(state: OverallState) -> dict[str, Any]:
     # Invoke
     result = cast(
         ReflectionOutput,
-        structured_llm.invoke(
+        await structured_llm.ainvoke(
             [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": "Produce a structured reflection output."},
             ]
         ),
     )
+    
+    # Add AI response to history
+    if result.is_satisfactory:
+        ai_msg = AIMessage(content="All required information has been successfully extracted")
+    else:
+        ai_msg = AIMessage(content=f"Missing information identified. Generated {len(result.search_queries)} new search queries")
+    
+    # Update conversation history
+    new_history = managed_history + [user_msg, ai_msg]
 
     if result.is_satisfactory:
-        return {"is_satisfactory": result.is_satisfactory}
+        return {
+            "is_satisfactory": result.is_satisfactory,
+            "conversation_history": new_history,
+            "conversation_summarized": len(managed_history) < len(state.conversation_history)
+        }
     else:
         return {
             "is_satisfactory": result.is_satisfactory,
             "search_queries": result.search_queries,
             "reflection_steps_taken": state.reflection_steps_taken + 1,
+            "conversation_history": new_history,
+            "conversation_summarized": len(managed_history) < len(state.conversation_history)
         }
 
 
@@ -215,6 +323,19 @@ def route_from_reflection(
     return END
 
 
+async def monitor_conversation(state: OverallState) -> dict[str, Any]:
+    """Monitor conversation statistics and log if summarization occurred."""
+    stats = conversation_manager.get_conversation_stats(state.conversation_history)
+    
+    if state.conversation_summarized:
+        print(f"📊 Conversation summarized to manage token usage")
+        print(f"   - Messages: {stats['total_messages']}")
+        print(f"   - Token usage: {stats['token_usage_ratio']:.1%}")
+    
+    # Return empty dict as this is a monitoring node
+    return {}
+
+
 # Add nodes and edges
 builder = StateGraph(
     OverallState,
@@ -226,9 +347,11 @@ builder.add_node("gather_notes_extract_schema", gather_notes_extract_schema)
 builder.add_node("generate_queries", generate_queries)
 builder.add_node("research_company", research_company)
 builder.add_node("reflection", reflection)
+builder.add_node("monitor_conversation", monitor_conversation)
 
 builder.add_edge(START, "generate_queries")
-builder.add_edge("generate_queries", "research_company")
+builder.add_edge("generate_queries", "monitor_conversation")
+builder.add_edge("monitor_conversation", "research_company")
 builder.add_edge("research_company", "gather_notes_extract_schema")
 builder.add_edge("gather_notes_extract_schema", "reflection")
 builder.add_conditional_edges("reflection", route_from_reflection)
