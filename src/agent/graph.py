@@ -216,6 +216,99 @@ def route_from_reflection(
     return END
 
 
+def summarize_conversation(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
+    """
+    Summarize conversation history to manage token limits while preserving key research findings.
+    
+    Args:
+        state: Current state containing conversation history and research data
+        config: Configuration containing summarization settings
+        
+    Returns:
+        dict: Updated state with new summary and trimmed messages
+    """
+    # Get configuration
+    configurable = Configuration.from_runnable_config(config)
+    
+    # If no messages to summarize, return unchanged state
+    if not hasattr(state, 'messages') or not state.messages:
+        return {}
+    
+    # Prepare messages for summarization
+    messages_to_summarize = state.messages[:-configurable.messages_to_keep_after_summary] if len(state.messages) > configurable.messages_to_keep_after_summary else state.messages
+    
+    if not messages_to_summarize:
+        return {}
+    
+    # Create summarization prompt - will be imported from prompts.py in next task
+    # For now, using inline prompt until SUMMARIZATION_PROMPT is created
+    if state.summary:
+        # Extend existing summary
+        summary_instruction = f"""You are tasked with extending an existing conversation summary with new information.
+
+Current summary: {state.summary}
+
+New conversation messages to incorporate:
+{chr(10).join([f"{msg.__class__.__name__}: {msg.content}" for msg in messages_to_summarize])}
+
+Create an updated summary that:
+1. Preserves all key company research findings and insights from both the existing summary and new messages
+2. Maintains conversation flow and important details
+3. Keeps track of research progress and discoveries
+4. Consolidates information without losing critical details
+5. Focuses on company-specific information, findings, and research outcomes
+
+Provide only the updated summary, no additional commentary."""
+    else:
+        # Create new summary
+        summary_instruction = f"""You are tasked with creating a comprehensive summary of a company research conversation.
+
+Conversation messages to summarize:
+{chr(10).join([f"{msg.__class__.__name__}: {msg.content}" for msg in messages_to_summarize])}
+
+Create a summary that:
+1. Preserves all key company research findings and insights
+2. Maintains conversation flow and important details  
+3. Keeps track of research progress and discoveries
+4. Focuses on company-specific information, findings, and research outcomes
+5. Organizes information in a clear, structured way
+
+Provide only the summary, no additional commentary."""
+    
+    # Generate summary using Claude 3.5 Sonnet
+    try:
+        summary_messages = [
+            {"role": "system", "content": summary_instruction},
+            {"role": "user", "content": "Please create the summary as requested."}
+        ]
+        
+        response = claude_3_5_sonnet.invoke(summary_messages)
+        new_summary = response.content
+        
+        # Keep only the most recent messages after summarization
+        recent_messages = state.messages[-configurable.messages_to_keep_after_summary:] if len(state.messages) > configurable.messages_to_keep_after_summary else []
+        
+        # Update token count for the new state
+        new_token_count = count_conversation_tokens(recent_messages)
+        
+        return {
+            "summary": new_summary,
+            "messages": recent_messages,
+            "total_tokens": new_token_count
+        }
+        
+    except Exception as e:
+        # If summarization fails, fall back to simple message trimming
+        print(f"Warning: Summarization failed: {e}")
+        recent_messages = state.messages[-configurable.messages_to_keep_after_summary:] if len(state.messages) > configurable.messages_to_keep_after_summary else state.messages
+        new_token_count = count_conversation_tokens(recent_messages)
+        
+        return {
+            "messages": recent_messages,
+            "total_tokens": new_token_count
+        }
+
+
 # Add nodes and edges
 builder = StateGraph(
     OverallState,
@@ -236,5 +329,6 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
