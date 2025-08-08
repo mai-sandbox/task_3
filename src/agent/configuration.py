@@ -1,3 +1,8 @@
+"""Configuration management for the company research agent.
+
+This module defines the Configuration class that manages all configurable parameters
+for the research agent, including conversation management settings and API configurations.
+"""
 import os
 from dataclasses import dataclass, fields
 from typing import Any, Optional
@@ -41,3 +46,4 @@ class Configuration:
             if f.init
         }
         return cls(**{k: v for k, v in values.items() if v})
+
