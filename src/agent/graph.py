@@ -241,40 +241,22 @@ def summarize_conversation(state: OverallState, config: RunnableConfig) -> dict[
     if not messages_to_summarize:
         return {}
     
-    # Create summarization prompt - will be imported from prompts.py in next task
-    # For now, using inline prompt until SUMMARIZATION_PROMPT is created
+    # Format conversation messages for the prompt
+    conversation_messages_text = chr(10).join([f"{msg.__class__.__name__}: {msg.content}" for msg in messages_to_summarize])
+    
+    # Prepare the summarization prompt with appropriate context
     if state.summary:
         # Extend existing summary
-        summary_instruction = f"""You are tasked with extending an existing conversation summary with new information.
-
-Current summary: {state.summary}
-
-New conversation messages to incorporate:
-{chr(10).join([f"{msg.__class__.__name__}: {msg.content}" for msg in messages_to_summarize])}
-
-Create an updated summary that:
-1. Preserves all key company research findings and insights from both the existing summary and new messages
-2. Maintains conversation flow and important details
-3. Keeps track of research progress and discoveries
-4. Consolidates information without losing critical details
-5. Focuses on company-specific information, findings, and research outcomes
-
-Provide only the updated summary, no additional commentary."""
+        existing_summary_text = f"Current summary to extend:\n{state.summary}\n\nNew conversation messages to incorporate:"
     else:
         # Create new summary
-        summary_instruction = f"""You are tasked with creating a comprehensive summary of a company research conversation.
-
-Conversation messages to summarize:
-{chr(10).join([f"{msg.__class__.__name__}: {msg.content}" for msg in messages_to_summarize])}
-
-Create a summary that:
-1. Preserves all key company research findings and insights
-2. Maintains conversation flow and important details  
-3. Keeps track of research progress and discoveries
-4. Focuses on company-specific information, findings, and research outcomes
-5. Organizes information in a clear, structured way
-
-Provide only the summary, no additional commentary."""
+        existing_summary_text = "Conversation messages to summarize:"
+    
+    # Use the SUMMARIZATION_PROMPT template
+    summary_instruction = SUMMARIZATION_PROMPT.format(
+        existing_summary=existing_summary_text,
+        conversation_messages=conversation_messages_text
+    )
     
     # Generate summary using Claude 3.5 Sonnet
     try:
@@ -330,6 +312,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
