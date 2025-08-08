@@ -81,22 +81,24 @@ Analyze if all required fields are present and sufficiently populated. Consider:
 3. Are there fields with placeholder values or "unknown" markers?
 """
 
-SUMMARIZATION_PROMPT = """You are tasked with {action} a conversation summary for a company research session.
+SUMMARIZATION_PROMPT = """You are tasked with creating or extending a conversation summary for a company research session.
 
-{existing_summary_section}
+{existing_summary}
 
-{conversation_messages_section}
+{conversation_messages}
 
-Create {summary_type} that:
-1. **Preserves all key company research findings and insights** - Never lose important business information, financial data, or strategic details
-2. **Maintains conversation flow and context** - Keep track of the research progression and decision-making process
-3. **Keeps important details** - Retain specific facts, dates, figures, sources, and methodological notes
-4. **Focuses on company-specific information** - Prioritize findings about the target company over general research methodology
-5. **Organizes information clearly** - Structure the summary in a logical, easy-to-follow format
-6. **Tracks research progress** - Note what has been discovered, what gaps remain, and what areas need further investigation
-7. **Consolidates without losing critical details** - Combine related information while preserving nuance and specificity
+Create a comprehensive summary that:
+1. **Preserves all key company research findings and insights** - Never lose important business information, financial data, strategic details, or research discoveries
+2. **Maintains conversation flow and context** - Keep track of the research progression, decision-making process, and how the investigation evolved
+3. **Keeps important details** - Retain specific facts, dates, figures, sources, methodological notes, and any quantitative data discovered
+4. **Focuses on company-specific information** - Prioritize findings about the target company, its business model, market position, and competitive landscape
+5. **Organizes information clearly** - Structure the summary in a logical, easy-to-follow format with clear sections for different types of findings
+6. **Tracks research progress** - Note what has been discovered, what information gaps remain, what areas need further investigation, and what research strategies were employed
+7. **Consolidates without losing critical details** - Combine related information while preserving nuance, specificity, and the context in which information was discovered
+8. **Maintains research quality indicators** - Note the reliability of sources, confidence levels in findings, and any uncertainties or conflicting information
 
-{output_instruction}
+The summary should be comprehensive enough that someone could understand the full scope of research conducted and findings discovered without needing to review the original conversation.
 
-Provide only the {summary_output_type}, no additional commentary or meta-discussion."""
+Provide only the updated summary, no additional commentary or meta-discussion."""
+
 
