@@ -376,8 +376,11 @@ builder.add_node("gather_notes_extract_schema", gather_notes_extract_schema)
 builder.add_node("generate_queries", generate_queries)
 builder.add_node("research_company", research_company)
 builder.add_node("reflection", reflection)
+builder.add_node("summarize_conversation", summarize_conversation)
 
-builder.add_edge(START, "generate_queries")
+# Add conditional routing from START to check for summarization needs
+builder.add_conditional_edges(START, route_to_summarization)
+builder.add_edge("summarize_conversation", "generate_queries")
 builder.add_edge("generate_queries", "research_company")
 builder.add_edge("research_company", "gather_notes_extract_schema")
 builder.add_edge("gather_notes_extract_schema", "reflection")
@@ -385,6 +388,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
