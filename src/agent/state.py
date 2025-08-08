@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from typing import Any, Optional, Annotated
 import operator
 
+from langchain_core.messages import BaseMessage
+
 
 DEFAULT_EXTRACTION_SCHEMA = {
     "title": "CompanyInfo",
@@ -105,3 +107,4 @@ class OutputState:
 
     search_results: list[dict] = field(default=None)
     "List of search results"
+
