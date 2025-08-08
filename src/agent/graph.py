@@ -62,6 +62,13 @@ def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, A
     configurable = Configuration.from_runnable_config(config)
     max_search_queries = configurable.max_search_queries
 
+    # Add conversation tracking - user request for query generation
+    user_message = HumanMessage(
+        content=f"Generate search queries for researching {state.company}. "
+                f"Schema: {json.dumps(state.extraction_schema, indent=2)}. "
+                f"User notes: {state.user_notes}"
+    )
+
     # Generate search queries
     structured_llm = claude_3_5_sonnet.with_structured_output(Queries)
 
@@ -89,7 +96,16 @@ def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, A
 
     # Queries
     query_list = [query for query in results.queries]
-    return {"search_queries": query_list}
+    
+    # Add conversation tracking - AI response with generated queries
+    ai_message = AIMessage(
+        content=f"Generated {len(query_list)} search queries for {state.company}: {', '.join(query_list)}"
+    )
+
+    return {
+        "search_queries": query_list,
+        "messages": [user_message, ai_message]
+    }
 
 
 async def research_company(
@@ -312,6 +328,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
