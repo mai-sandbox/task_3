@@ -130,7 +130,7 @@ def count_conversation_tokens(messages: list[BaseMessage]) -> int:
     return total_tokens
 
 
-def should_summarize(state, config) -> bool:
+def should_summarize(state: "OverallState", config: "Configuration") -> bool:
     """
     Check if conversation summarization should be triggered based on token limits.
     
@@ -141,10 +141,6 @@ def should_summarize(state, config) -> bool:
     Returns:
         bool: True if summarization should be triggered, False otherwise
     """
-    # Import here to avoid circular imports
-    from agent.state import OverallState
-    from agent.configuration import Configuration
-    
     if not hasattr(state, 'messages') or not state.messages:
         return False
     
@@ -155,7 +151,7 @@ def should_summarize(state, config) -> bool:
     return current_tokens >= config.summarization_trigger_tokens
 
 
-def create_conversation_messages(state) -> list[BaseMessage]:
+def create_conversation_messages(state: "OverallState") -> list[BaseMessage]:
     """
     Convert state data into message format for LLM interactions.
     
@@ -165,9 +161,6 @@ def create_conversation_messages(state) -> list[BaseMessage]:
     Returns:
         list[BaseMessage]: List of messages formatted for LLM consumption
     """
-    # Import here to avoid circular imports
-    from agent.state import OverallState
-    
     messages = []
     
     # Add existing conversation history
@@ -183,6 +176,7 @@ def create_conversation_messages(state) -> list[BaseMessage]:
         messages.insert(0, summary_message)
     
     return messages
+
 
 
 
