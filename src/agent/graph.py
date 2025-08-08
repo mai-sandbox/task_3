@@ -211,6 +211,12 @@ def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
 
 def reflection(state: OverallState) -> dict[str, Any]:
     """Reflect on the extracted information and generate search queries to find missing information."""
+    
+    # Add conversation tracking - user request for reflection
+    user_message = HumanMessage(
+        content=f"Analyze the completeness of extracted information for {state.company} and determine if additional research is needed."
+    )
+    
     structured_llm = claude_3_5_sonnet.with_structured_output(ReflectionOutput)
 
     # Format reflection prompt
@@ -230,13 +236,24 @@ def reflection(state: OverallState) -> dict[str, Any]:
         ),
     )
 
+    # Add conversation tracking - AI response with reflection results
     if result.is_satisfactory:
-        return {"is_satisfactory": result.is_satisfactory}
+        ai_message = AIMessage(
+            content=f"Research analysis complete for {state.company}. All required information has been successfully gathered and extracted according to the schema requirements."
+        )
+        return {
+            "is_satisfactory": result.is_satisfactory,
+            "messages": [user_message, ai_message]
+        }
     else:
+        ai_message = AIMessage(
+            content=f"Research analysis for {state.company} identified missing information. Generated {len(result.search_queries)} additional search queries to fill gaps: {', '.join(result.search_queries)}"
+        )
         return {
             "is_satisfactory": result.is_satisfactory,
             "search_queries": result.search_queries,
             "reflection_steps_taken": state.reflection_steps_taken + 1,
+            "messages": [user_message, ai_message]
         }
 
 
@@ -354,6 +371,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
