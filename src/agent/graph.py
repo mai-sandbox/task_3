@@ -1,3 +1,9 @@
+"""LangGraph-based company research agent with dynamic conversation summarization.
+
+This module implements the core research workflow using LangGraph StateGraph, including
+web search, information extraction, reflection, and automatic conversation summarization
+to manage token limits while preserving research context.
+"""
 import asyncio
 import json
 from typing import Any, Literal, cast
@@ -396,3 +402,4 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
