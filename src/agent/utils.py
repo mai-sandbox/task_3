@@ -1,3 +1,11 @@
+"""Utility functions for the company research agent.
+
+This module provides utility functions for source deduplication, content formatting,
+conversation management, token counting, and summarization triggers to support
+the research workflow and dynamic conversation summarization.
+"""
+
+
 def deduplicate_sources(search_response: dict | list[dict]) -> list[dict]:
     """Takes either a single search response or list of responses from Tavily API and de-duplicates them based on the URL.
 
@@ -171,3 +179,4 @@ def create_conversation_messages(state: "OverallState") -> list[BaseMessage]:
         messages.insert(0, summary_message)
 
     return messages
+
