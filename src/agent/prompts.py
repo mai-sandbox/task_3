@@ -1,3 +1,10 @@
+"""Prompt templates for the company research agent.
+
+This module contains all the prompt templates used by the research agent,
+including prompts for information extraction, reflection, research, query generation,
+and conversation summarization.
+"""
+
 EXTRACTION_PROMPT = """Your task is to take notes gathered from web research and extract them into the following schema.
 
 <schema>
@@ -100,3 +107,4 @@ Create a comprehensive summary that:
 The summary should be comprehensive enough that someone could understand the full scope of research conducted and findings discovered without needing to review the original conversation.
 
 Provide only the updated summary, no additional commentary or meta-discussion."""
+
