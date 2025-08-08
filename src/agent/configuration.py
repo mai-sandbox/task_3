@@ -15,11 +15,17 @@ class Configuration:
     include_search_results: bool = (
         False  # Whether to include search results in the output
     )
-    
+
     # Conversation management settings
-    max_conversation_tokens: int = 20000  # Maximum tokens allowed in conversation history
-    summarization_trigger_tokens: int = 18000  # Token threshold to trigger summarization
-    messages_to_keep_after_summary: int = 5  # Number of recent messages to preserve after summarization
+    max_conversation_tokens: int = (
+        20000  # Maximum tokens allowed in conversation history
+    )
+    summarization_trigger_tokens: int = (
+        18000  # Token threshold to trigger summarization
+    )
+    messages_to_keep_after_summary: int = (
+        5  # Number of recent messages to preserve after summarization
+    )
 
     @classmethod
     def from_runnable_config(
@@ -35,4 +41,3 @@ class Configuration:
             if f.init
         }
         return cls(**{k: v for k, v in values.items() if v})
-

@@ -71,8 +71,8 @@ def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, A
     # Add conversation tracking - user request for query generation
     user_message = HumanMessage(
         content=f"Generate search queries for researching {state.company}. "
-                f"Schema: {json.dumps(state.extraction_schema, indent=2)}. "
-                f"User notes: {state.user_notes}"
+        f"Schema: {json.dumps(state.extraction_schema, indent=2)}. "
+        f"User notes: {state.user_notes}"
     )
 
     # Generate search queries
@@ -102,16 +102,13 @@ def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, A
 
     # Queries
     query_list = [query for query in results.queries]
-    
+
     # Add conversation tracking - AI response with generated queries
     ai_message = AIMessage(
         content=f"Generated {len(query_list)} search queries for {state.company}: {', '.join(query_list)}"
     )
 
-    return {
-        "search_queries": query_list,
-        "messages": [user_message, ai_message]
-    }
+    return {"search_queries": query_list, "messages": [user_message, ai_message]}
 
 
 async def research_company(
@@ -161,15 +158,15 @@ async def research_company(
         user_notes=state.user_notes,
     )
     result = await claude_3_5_sonnet.ainvoke(p)
-    
+
     # Add conversation tracking - AI response with research findings
     ai_message = AIMessage(
         content=f"Completed web research for {state.company}. Found {len(deduplicated_search_docs)} unique sources and generated structured research notes covering the requested schema fields."
     )
-    
+
     state_update = {
         "completed_notes": [str(result.content)],
-        "messages": [user_message, ai_message]
+        "messages": [user_message, ai_message],
     }
     if configurable.include_search_results:
         state_update["search_results"] = deduplicated_search_docs
@@ -201,16 +198,13 @@ def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
             },
         ]
     )
-    
+
     # Add conversation tracking - AI response with extracted information
     ai_message = AIMessage(
         content=f"Successfully extracted structured information for {state.company} from research notes. Populated schema fields with available data and identified any missing information."
     )
-    
-    return {
-        "info": result,
-        "messages": [user_message, ai_message]
-    }
+
+    return {"info": result, "messages": [user_message, ai_message]}
 
 
 def reflection(state: OverallState) -> dict[str, Any]:
@@ -219,7 +213,7 @@ def reflection(state: OverallState) -> dict[str, Any]:
     user_message = HumanMessage(
         content=f"Analyze the completeness of extracted information for {state.company} and determine if additional research is needed."
     )
-    
+
     structured_llm = claude_3_5_sonnet.with_structured_output(ReflectionOutput)
 
     # Format reflection prompt
@@ -246,7 +240,7 @@ def reflection(state: OverallState) -> dict[str, Any]:
         )
         return {
             "is_satisfactory": result.is_satisfactory,
-            "messages": [user_message, ai_message]
+            "messages": [user_message, ai_message],
         }
     else:
         ai_message = AIMessage(
@@ -256,7 +250,7 @@ def reflection(state: OverallState) -> dict[str, Any]:
             "is_satisfactory": result.is_satisfactory,
             "search_queries": result.search_queries,
             "reflection_steps_taken": state.reflection_steps_taken + 1,
-            "messages": [user_message, ai_message]
+            "messages": [user_message, ai_message],
         }
 
 
@@ -285,7 +279,7 @@ def route_to_summarization(
     """Route the graph to summarization if token limits are exceeded, otherwise proceed to query generation."""
     # Get configuration
     configurable = Configuration.from_runnable_config(config)
-    
+
     # Check if summarization is needed based on token limits
     if should_summarize(state, configurable):
         return "summarize_conversation"
@@ -293,32 +287,40 @@ def route_to_summarization(
         return "generate_queries"
 
 
-def summarize_conversation(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
+def summarize_conversation(
+    state: OverallState, config: RunnableConfig
+) -> dict[str, Any]:
     """Summarize conversation history to manage token limits while preserving key research findings.
-    
+
     Args:
         state: Current state containing conversation history and research data
         config: Configuration containing summarization settings
-        
+
     Returns:
         dict: Updated state with new summary and trimmed messages
     """
     # Get configuration
     configurable = Configuration.from_runnable_config(config)
-    
+
     # If no messages to summarize, return unchanged state
-    if not hasattr(state, 'messages') or not state.messages:
+    if not hasattr(state, "messages") or not state.messages:
         return {}
-    
+
     # Prepare messages for summarization
-    messages_to_summarize = state.messages[:-configurable.messages_to_keep_after_summary] if len(state.messages) > configurable.messages_to_keep_after_summary else state.messages
-    
+    messages_to_summarize = (
+        state.messages[: -configurable.messages_to_keep_after_summary]
+        if len(state.messages) > configurable.messages_to_keep_after_summary
+        else state.messages
+    )
+
     if not messages_to_summarize:
         return {}
-    
+
     # Format conversation messages for the prompt
-    conversation_messages_text = chr(10).join([f"{msg.__class__.__name__}: {msg.content}" for msg in messages_to_summarize])
-    
+    conversation_messages_text = chr(10).join(
+        [f"{msg.__class__.__name__}: {msg.content}" for msg in messages_to_summarize]
+    )
+
     # Prepare the summarization prompt with appropriate context
     if state.summary:
         # Extend existing summary
@@ -326,45 +328,50 @@ def summarize_conversation(state: OverallState, config: RunnableConfig) -> dict[
     else:
         # Create new summary
         existing_summary_text = "Conversation messages to summarize:"
-    
+
     # Use the SUMMARIZATION_PROMPT template
     summary_instruction = SUMMARIZATION_PROMPT.format(
         existing_summary=existing_summary_text,
-        conversation_messages=conversation_messages_text
+        conversation_messages=conversation_messages_text,
     )
-    
+
     # Generate summary using Claude 3.5 Sonnet
     try:
         summary_messages = [
             {"role": "system", "content": summary_instruction},
-            {"role": "user", "content": "Please create the summary as requested."}
+            {"role": "user", "content": "Please create the summary as requested."},
         ]
-        
+
         response = claude_3_5_sonnet.invoke(summary_messages)
         new_summary = response.content
-        
+
         # Keep only the most recent messages after summarization
-        recent_messages = state.messages[-configurable.messages_to_keep_after_summary:] if len(state.messages) > configurable.messages_to_keep_after_summary else []
-        
+        recent_messages = (
+            state.messages[-configurable.messages_to_keep_after_summary :]
+            if len(state.messages) > configurable.messages_to_keep_after_summary
+            else []
+        )
+
         # Update token count for the new state
         new_token_count = count_conversation_tokens(recent_messages)
-        
+
         return {
             "summary": new_summary,
             "messages": recent_messages,
-            "total_tokens": new_token_count
+            "total_tokens": new_token_count,
         }
-        
+
     except Exception as e:
         # If summarization fails, fall back to simple message trimming
         print(f"Warning: Summarization failed: {e}")
-        recent_messages = state.messages[-configurable.messages_to_keep_after_summary:] if len(state.messages) > configurable.messages_to_keep_after_summary else state.messages
+        recent_messages = (
+            state.messages[-configurable.messages_to_keep_after_summary :]
+            if len(state.messages) > configurable.messages_to_keep_after_summary
+            else state.messages
+        )
         new_token_count = count_conversation_tokens(recent_messages)
-        
-        return {
-            "messages": recent_messages,
-            "total_tokens": new_token_count
-        }
+
+        return {"messages": recent_messages, "total_tokens": new_token_count}
 
 
 # Add nodes and edges
@@ -390,15 +397,3 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
-
-
-
-
-
-
-
-
-
-
-
-

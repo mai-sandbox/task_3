@@ -100,5 +100,3 @@ Create a comprehensive summary that:
 The summary should be comprehensive enough that someone could understand the full scope of research conducted and findings discovered without needing to review the original conversation.
 
 Provide only the updated summary, no additional commentary or meta-discussion."""
-
-
