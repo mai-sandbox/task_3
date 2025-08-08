@@ -361,9 +361,8 @@ def summarize_conversation(
             "total_tokens": new_token_count,
         }
 
-    except Exception as e:
+    except Exception:
         # If summarization fails, fall back to simple message trimming
-        print(f"Warning: Summarization failed: {e}")
         recent_messages = (
             state.messages[-configurable.messages_to_keep_after_summary :]
             if len(state.messages) > configurable.messages_to_keep_after_summary
