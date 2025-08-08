@@ -122,6 +122,11 @@ async def research_company(
     configurable = Configuration.from_runnable_config(config)
     max_search_results = configurable.max_search_results
 
+    # Add conversation tracking - user request for research
+    user_message = HumanMessage(
+        content=f"Execute web research for {state.company} using these search queries: {', '.join(state.search_queries)}"
+    )
+
     # Search tasks
     search_tasks = []
     for query in state.search_queries:
@@ -151,8 +156,15 @@ async def research_company(
         user_notes=state.user_notes,
     )
     result = await claude_3_5_sonnet.ainvoke(p)
+    
+    # Add conversation tracking - AI response with research findings
+    ai_message = AIMessage(
+        content=f"Completed web research for {state.company}. Found {len(deduplicated_search_docs)} unique sources and generated structured research notes covering the requested schema fields."
+    )
+    
     state_update = {
         "completed_notes": [str(result.content)],
+        "messages": [user_message, ai_message]
     }
     if configurable.include_search_results:
         state_update["search_results"] = deduplicated_search_docs
@@ -328,6 +340,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
