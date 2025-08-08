@@ -1,3 +1,9 @@
+"""State management for the company research agent.
+
+This module defines the state classes used by the LangGraph agent, including
+input/output states and the main OverallState that tracks conversation history,
+research progress, and token usage for dynamic summarization.
+"""
 import operator
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Optional
@@ -115,3 +121,4 @@ class OutputState:
 
     search_results: list[dict] = field(default=None)
     "List of search results"
+
