@@ -88,3 +88,44 @@ Note: {idx}:
 Notes from research:
 {company_notes}"""
     return formatted_str
+
+
+def count_tokens(text: str, model: str = "gpt-4") -> int:
+    """Count tokens in text using tiktoken."""
+    import tiktoken
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+        return len(encoding.encode(text))
+    except KeyError:
+        # Fallback to cl100k_base for unknown models
+        encoding = tiktoken.get_encoding("cl100k_base")
+        return len(encoding.encode(text))
+
+
+def count_conversation_tokens(conversation_history: list[dict]) -> int:
+    """Count total tokens in conversation history."""
+    total_tokens = 0
+    for message in conversation_history:
+        if isinstance(message, dict):
+            content = message.get('content', '')
+            role = message.get('role', '')
+            total_tokens += count_tokens(f"{role}: {content}")
+        else:
+            total_tokens += count_tokens(str(message))
+    return total_tokens
+
+
+def should_summarize(conversation_history: list[dict], token_limit: int = 20000) -> bool:
+    """Check if conversation should be summarized based on token count."""
+    return count_conversation_tokens(conversation_history) > token_limit
+
+
+def prepare_conversation_for_summary(conversation_history: list[dict], keep_recent: int = 5) -> tuple[list[dict], list[dict]]:
+    """Split conversation into messages to summarize and messages to keep."""
+    if len(conversation_history) <= keep_recent:
+        return conversation_history, []
+    
+    messages_to_summarize = conversation_history[:-keep_recent]
+    messages_to_keep = conversation_history[-keep_recent:]
+    
+    return messages_to_summarize, messages_to_keep

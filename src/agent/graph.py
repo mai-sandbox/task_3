@@ -9,14 +9,22 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import START, END, StateGraph
 from pydantic import BaseModel, Field
 
-from agent.configuration import Configuration
-from agent.state import InputState, OutputState, OverallState
-from agent.utils import deduplicate_sources, format_sources, format_all_notes
-from agent.prompts import (
+from .configuration import Configuration
+from .state import InputState, OutputState, OverallState
+from .utils import (
+    deduplicate_sources, 
+    format_sources, 
+    format_all_notes,
+    should_summarize,
+    prepare_conversation_for_summary,
+    count_conversation_tokens
+)
+from .prompts import (
     EXTRACTION_PROMPT,
     REFLECTION_PROMPT,
     INFO_PROMPT,
     QUERY_WRITER_PROMPT,
+    SUMMARIZATION_PROMPT,
 )
 
 # LLMs
@@ -196,13 +204,98 @@ def reflection(state: OverallState) -> dict[str, Any]:
         }
 
 
+def summarize_conversation(state: OverallState) -> dict[str, Any]:
+    """Summarize conversation history when it becomes too long."""
+    # Prepare conversation for summarization
+    messages_to_summarize, messages_to_keep = prepare_conversation_for_summary(
+        state.conversation_history, keep_recent=5
+    )
+    
+    if not messages_to_summarize:
+        return {}
+    
+    # Format conversation history for summarization
+    conversation_text = ""
+    for msg in messages_to_summarize:
+        role = msg.get('role', 'unknown')
+        content = msg.get('content', '')
+        conversation_text += f"{role}: {content}\n\n"
+    
+    # Create summary using LLM
+    summary_prompt = SUMMARIZATION_PROMPT.format(
+        conversation_history=conversation_text,
+        company=state.company
+    )
+    
+    result = claude_3_5_sonnet.invoke(summary_prompt)
+    new_summary = str(result.content)
+    
+    # Combine with existing summary if present
+    if state.conversation_summary:
+        combined_summary = f"Previous Summary:\n{state.conversation_summary}\n\nRecent Summary:\n{new_summary}"
+        final_summary = claude_3_5_sonnet.invoke(
+            f"Combine these summaries into a cohesive research summary:\n\n{combined_summary}"
+        )
+        new_summary = str(final_summary.content)
+    
+    # Update state with summary and reduced conversation history
+    return {
+        "conversation_summary": new_summary,
+        "conversation_history": messages_to_keep,
+        "total_tokens": count_conversation_tokens(messages_to_keep)
+    }
+
+
+def check_and_update_conversation(state: OverallState) -> dict[str, Any]:
+    """Check if conversation needs summarization and update tracking."""
+    updates = {}
+    
+    # Add current research step to conversation history
+    if state.completed_notes:
+        latest_note = state.completed_notes[-1]
+        conversation_msg = {
+            "role": "assistant", 
+            "content": f"Research findings: {latest_note}",
+            "timestamp": "current"
+        }
+        updates["conversation_history"] = [conversation_msg]
+    
+    # Update token count
+    current_tokens = count_conversation_tokens(state.conversation_history + updates.get("conversation_history", []))
+    updates["total_tokens"] = current_tokens
+    
+    return updates
+
+
 def route_from_reflection(
     state: OverallState, config: RunnableConfig
-) -> Literal[END, "research_company"]:  # type: ignore
-    """Route the graph based on the reflection output."""
+) -> Literal[END, "research_company", "summarize_conversation"]:  # type: ignore
+    """Route the graph based on the reflection output and conversation length."""
     # Get configuration
     configurable = Configuration.from_runnable_config(config)
+    
+    # Check if conversation needs summarization first
+    if should_summarize(state.conversation_history):
+        return "summarize_conversation"
 
+    # If we have satisfactory results, end the process
+    if state.is_satisfactory:
+        return END
+
+    # If results aren't satisfactory but we haven't hit max steps, continue research
+    if state.reflection_steps_taken <= configurable.max_reflection_steps:
+        return "research_company"
+
+    # If we've exceeded max steps, end even if not satisfactory
+    return END
+
+
+def route_after_summarization(
+    state: OverallState, config: RunnableConfig
+) -> Literal[END, "research_company"]:  # type: ignore
+    """Route after summarization based on original reflection logic."""
+    configurable = Configuration.from_runnable_config(config)
+    
     # If we have satisfactory results, end the process
     if state.is_satisfactory:
         return END
@@ -226,12 +319,16 @@ builder.add_node("gather_notes_extract_schema", gather_notes_extract_schema)
 builder.add_node("generate_queries", generate_queries)
 builder.add_node("research_company", research_company)
 builder.add_node("reflection", reflection)
+builder.add_node("check_and_update_conversation", check_and_update_conversation)
+builder.add_node("summarize_conversation", summarize_conversation)
 
 builder.add_edge(START, "generate_queries")
 builder.add_edge("generate_queries", "research_company")
 builder.add_edge("research_company", "gather_notes_extract_schema")
-builder.add_edge("gather_notes_extract_schema", "reflection")
+builder.add_edge("gather_notes_extract_schema", "check_and_update_conversation")
+builder.add_edge("check_and_update_conversation", "reflection")
 builder.add_conditional_edges("reflection", route_from_reflection)
+builder.add_conditional_edges("summarize_conversation", route_after_summarization)
 
 # Compile
 graph = builder.compile()

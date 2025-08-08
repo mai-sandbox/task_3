@@ -87,6 +87,15 @@ class OverallState:
     reflection_steps_taken: int = field(default=0)
     "Number of times the reflection node has been executed"
 
+    conversation_history: Annotated[list, operator.add] = field(default_factory=list)
+    "List of conversation messages for context preservation"
+
+    conversation_summary: Optional[str] = field(default=None)
+    "Summary of previous conversation history when messages are condensed"
+
+    total_tokens: int = field(default=0)
+    "Running count of tokens in conversation history"
+
 
 @dataclass(kw_only=True)
 class OutputState:

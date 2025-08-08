@@ -80,3 +80,25 @@ Analyze if all required fields are present and sufficiently populated. Consider:
 2. Are any fields incomplete or containing uncertain information?
 3. Are there fields with placeholder values or "unknown" markers?
 """
+
+SUMMARIZATION_PROMPT = """You are tasked with summarizing a conversation history about company research. Your goal is to create a concise summary that preserves the most important findings, insights, and context while dramatically reducing the token count.
+
+<conversation_history>
+{conversation_history}
+</conversation_history>
+
+<company_being_researched>
+{company}
+</company_being_researched>
+
+Create a comprehensive summary that:
+
+1. **Preserves Key Findings**: Include all important company research findings, data points, and insights discovered
+2. **Maintains Research Context**: Keep track of what information was sought and what gaps were identified  
+3. **Retains Critical Details**: Preserve specific facts, dates, numbers, and other concrete information
+4. **Notes Research Progress**: Summarize what research steps were completed and their outcomes
+5. **Identifies Outstanding Questions**: Capture any unresolved research questions or missing information
+
+The summary should be structured and organized, allowing future interactions to continue the research effectively without losing important context.
+
+Focus on factual information and research insights rather than conversational details. The summary will be used to maintain research continuity while keeping the conversation history manageable."""
