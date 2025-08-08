@@ -88,3 +88,94 @@ Note: {idx}:
 Notes from research:
 {company_notes}"""
     return formatted_str
+
+
+# Conversation management utilities
+
+import tiktoken
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+
+
+def count_conversation_tokens(messages: list[BaseMessage]) -> int:
+    """
+    Count the total number of tokens in a list of messages using tiktoken.
+    
+    Args:
+        messages: List of BaseMessage objects to count tokens for
+        
+    Returns:
+        int: Total token count for all messages
+    """
+    if not messages:
+        return 0
+    
+    # Use cl100k_base encoding (used by GPT-4 and Claude models)
+    encoding = tiktoken.get_encoding("cl100k_base")
+    total_tokens = 0
+    
+    for message in messages:
+        # Count tokens for message content
+        if hasattr(message, 'content') and message.content:
+            total_tokens += len(encoding.encode(str(message.content)))
+        
+        # Add tokens for message metadata (role, etc.)
+        # Approximate 4 tokens per message for metadata
+        total_tokens += 4
+    
+    return total_tokens
+
+
+def should_summarize(state, config) -> bool:
+    """
+    Check if conversation summarization should be triggered based on token limits.
+    
+    Args:
+        state: OverallState object containing conversation history
+        config: Configuration object with token limits
+        
+    Returns:
+        bool: True if summarization should be triggered, False otherwise
+    """
+    # Import here to avoid circular imports
+    from agent.state import OverallState
+    from agent.configuration import Configuration
+    
+    if not hasattr(state, 'messages') or not state.messages:
+        return False
+    
+    # Count current tokens in conversation
+    current_tokens = count_conversation_tokens(state.messages)
+    
+    # Check if we've exceeded the summarization trigger threshold
+    return current_tokens >= config.summarization_trigger_tokens
+
+
+def create_conversation_messages(state) -> list[BaseMessage]:
+    """
+    Convert state data into message format for LLM interactions.
+    
+    Args:
+        state: OverallState object containing conversation data
+        
+    Returns:
+        list[BaseMessage]: List of messages formatted for LLM consumption
+    """
+    # Import here to avoid circular imports
+    from agent.state import OverallState
+    
+    messages = []
+    
+    # Add existing conversation history
+    if hasattr(state, 'messages') and state.messages:
+        messages.extend(state.messages)
+    
+    # Add summary as a system-like message if it exists
+    if hasattr(state, 'summary') and state.summary:
+        summary_message = HumanMessage(
+            content=f"Previous conversation summary: {state.summary}"
+        )
+        # Insert summary at the beginning after any existing messages
+        messages.insert(0, summary_message)
+    
+    return messages
+
