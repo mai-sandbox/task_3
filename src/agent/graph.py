@@ -175,6 +175,11 @@ async def research_company(
 def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
     """Gather notes from the web search and extract the schema fields."""
 
+    # Add conversation tracking - user request for schema extraction
+    user_message = HumanMessage(
+        content=f"Extract structured information for {state.company} from the research notes according to the defined schema."
+    )
+
     # Format all notes
     notes = format_all_notes(state.completed_notes)
 
@@ -192,7 +197,16 @@ def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
             },
         ]
     )
-    return {"info": result}
+    
+    # Add conversation tracking - AI response with extracted information
+    ai_message = AIMessage(
+        content=f"Successfully extracted structured information for {state.company} from research notes. Populated schema fields with available data and identified any missing information."
+    )
+    
+    return {
+        "info": result,
+        "messages": [user_message, ai_message]
+    }
 
 
 def reflection(state: OverallState) -> dict[str, Any]:
@@ -340,6 +354,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
