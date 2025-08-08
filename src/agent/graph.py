@@ -276,6 +276,20 @@ def route_from_reflection(
     return END
 
 
+def route_to_summarization(
+    state: OverallState, config: RunnableConfig
+) -> Literal["summarize_conversation", "generate_queries"]:
+    """Route the graph to summarization if token limits are exceeded, otherwise proceed to query generation."""
+    # Get configuration
+    configurable = Configuration.from_runnable_config(config)
+    
+    # Check if summarization is needed based on token limits
+    if should_summarize(state, configurable):
+        return "summarize_conversation"
+    else:
+        return "generate_queries"
+
+
 def summarize_conversation(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
     """
     Summarize conversation history to manage token limits while preserving key research findings.
@@ -371,6 +385,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
