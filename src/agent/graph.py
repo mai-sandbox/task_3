@@ -1,24 +1,30 @@
 import asyncio
-from typing import cast, Any, Literal
 import json
+from typing import Any, Literal, cast
 
-from tavily import AsyncTavilyClient
 from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import HumanMessage, AIMessage
-from langgraph.graph import START, END, StateGraph
+from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
+from tavily import AsyncTavilyClient
 
 from agent.configuration import Configuration
-from agent.state import InputState, OutputState, OverallState
-from agent.utils import deduplicate_sources, format_sources, format_all_notes, count_conversation_tokens, should_summarize
 from agent.prompts import (
     EXTRACTION_PROMPT,
-    REFLECTION_PROMPT,
     INFO_PROMPT,
     QUERY_WRITER_PROMPT,
+    REFLECTION_PROMPT,
     SUMMARIZATION_PROMPT,
+)
+from agent.state import InputState, OutputState, OverallState
+from agent.utils import (
+    count_conversation_tokens,
+    deduplicate_sources,
+    format_all_notes,
+    format_sources,
+    should_summarize,
 )
 
 # LLMs
@@ -117,7 +123,6 @@ async def research_company(
     1. Executes concurrent web searches using the Tavily API
     2. Deduplicates and formats the search results
     """
-
     # Get configuration
     configurable = Configuration.from_runnable_config(config)
     max_search_results = configurable.max_search_results
@@ -174,7 +179,6 @@ async def research_company(
 
 def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
     """Gather notes from the web search and extract the schema fields."""
-
     # Add conversation tracking - user request for schema extraction
     user_message = HumanMessage(
         content=f"Extract structured information for {state.company} from the research notes according to the defined schema."
@@ -211,7 +215,6 @@ def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
 
 def reflection(state: OverallState) -> dict[str, Any]:
     """Reflect on the extracted information and generate search queries to find missing information."""
-    
     # Add conversation tracking - user request for reflection
     user_message = HumanMessage(
         content=f"Analyze the completeness of extracted information for {state.company} and determine if additional research is needed."
@@ -291,8 +294,7 @@ def route_to_summarization(
 
 
 def summarize_conversation(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
-    """
-    Summarize conversation history to manage token limits while preserving key research findings.
+    """Summarize conversation history to manage token limits while preserving key research findings.
     
     Args:
         state: Current state containing conversation history and research data

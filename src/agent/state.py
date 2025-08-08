@@ -1,9 +1,8 @@
-from dataclasses import dataclass, field
-from typing import Any, Optional, Annotated
 import operator
+from dataclasses import dataclass, field
+from typing import Annotated, Any, Optional
 
 from langchain_core.messages import BaseMessage
-
 
 DEFAULT_EXTRACTION_SCHEMA = {
     "title": "CompanyInfo",

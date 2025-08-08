@@ -1,6 +1,5 @@
 def deduplicate_sources(search_response: dict | list[dict]) -> list[dict]:
-    """
-    Takes either a single search response or list of responses from Tavily API and de-duplicates them based on the URL.
+    """Takes either a single search response or list of responses from Tavily API and de-duplicates them based on the URL.
 
     Args:
         search_response: Either:
@@ -41,8 +40,7 @@ def format_sources(
     include_raw_content: bool = True,
     max_tokens_per_source: int = 1000,
 ) -> str:
-    """
-    Takes a list of unique results from Tavily API and formats them.
+    """Takes a list of unique results from Tavily API and formats them.
     Limits the raw_content to approximately max_tokens_per_source.
     include_raw_content specifies whether to include the raw_content from Tavily in the formatted string.
 
@@ -92,18 +90,18 @@ Notes from research:
 
 # Conversation management utilities
 
-import tiktoken
 from typing import TYPE_CHECKING
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+
+import tiktoken
+from langchain_core.messages import BaseMessage, HumanMessage
 
 if TYPE_CHECKING:
-    from agent.state import OverallState
     from agent.configuration import Configuration
+    from agent.state import OverallState
 
 
 def count_conversation_tokens(messages: list[BaseMessage]) -> int:
-    """
-    Count the total number of tokens in a list of messages using tiktoken.
+    """Count the total number of tokens in a list of messages using tiktoken.
     
     Args:
         messages: List of BaseMessage objects to count tokens for
@@ -131,8 +129,7 @@ def count_conversation_tokens(messages: list[BaseMessage]) -> int:
 
 
 def should_summarize(state: "OverallState", config: "Configuration") -> bool:
-    """
-    Check if conversation summarization should be triggered based on token limits.
+    """Check if conversation summarization should be triggered based on token limits.
     
     Args:
         state: OverallState object containing conversation history
@@ -152,8 +149,7 @@ def should_summarize(state: "OverallState", config: "Configuration") -> bool:
 
 
 def create_conversation_messages(state: "OverallState") -> list[BaseMessage]:
-    """
-    Convert state data into message format for LLM interactions.
+    """Convert state data into message format for LLM interactions.
     
     Args:
         state: OverallState object containing conversation data
