@@ -89,6 +89,15 @@ class OverallState:
     reflection_steps_taken: int = field(default=0)
     "Number of times the reflection node has been executed"
 
+    messages: Annotated[list[BaseMessage], operator.add] = field(default_factory=list)
+    "Conversation history tracking all messages exchanged during research"
+
+    summary: str = field(default="")
+    "Summary of the conversation history to preserve context when messages are trimmed"
+
+    total_tokens: int = field(default=0)
+    "Current token count of the conversation history for managing token limits"
+
 
 @dataclass(kw_only=True)
 class OutputState:
@@ -107,4 +116,5 @@ class OutputState:
 
     search_results: list[dict] = field(default=None)
     "List of search results"
+
 
