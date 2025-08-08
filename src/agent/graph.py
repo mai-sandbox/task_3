@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from agent.configuration import Configuration
 from agent.state import InputState, OutputState, OverallState
-from agent.utils import deduplicate_sources, format_sources, format_all_notes, count_conversation_tokens
+from agent.utils import deduplicate_sources, format_sources, format_all_notes, count_conversation_tokens, should_summarize
 from agent.prompts import (
     EXTRACTION_PROMPT,
     REFLECTION_PROMPT,
@@ -371,6 +371,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
