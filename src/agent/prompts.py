@@ -1,3 +1,10 @@
+"""Prompt templates for the company research agent.
+
+This module contains all the prompt templates used by the research agent,
+including prompts for information extraction, reflection, research, query generation,
+and conversation summarization.
+"""
+
 EXTRACTION_PROMPT = """Your task is to take notes gathered from web research and extract them into the following schema.
 
 <schema>
@@ -80,3 +87,24 @@ Analyze if all required fields are present and sufficiently populated. Consider:
 2. Are any fields incomplete or containing uncertain information?
 3. Are there fields with placeholder values or "unknown" markers?
 """
+
+SUMMARIZATION_PROMPT = """You are tasked with creating or extending a conversation summary for a company research session.
+
+{existing_summary}
+
+{conversation_messages}
+
+Create a comprehensive summary that:
+1. **Preserves all key company research findings and insights** - Never lose important business information, financial data, strategic details, or research discoveries
+2. **Maintains conversation flow and context** - Keep track of the research progression, decision-making process, and how the investigation evolved
+3. **Keeps important details** - Retain specific facts, dates, figures, sources, methodological notes, and any quantitative data discovered
+4. **Focuses on company-specific information** - Prioritize findings about the target company, its business model, market position, and competitive landscape
+5. **Organizes information clearly** - Structure the summary in a logical, easy-to-follow format with clear sections for different types of findings
+6. **Tracks research progress** - Note what has been discovered, what information gaps remain, what areas need further investigation, and what research strategies were employed
+7. **Consolidates without losing critical details** - Combine related information while preserving nuance, specificity, and the context in which information was discovered
+8. **Maintains research quality indicators** - Note the reliability of sources, confidence levels in findings, and any uncertainties or conflicting information
+
+The summary should be comprehensive enough that someone could understand the full scope of research conducted and findings discovered without needing to review the original conversation.
+
+Provide only the updated summary, no additional commentary or meta-discussion."""
+

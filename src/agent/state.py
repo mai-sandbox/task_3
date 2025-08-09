@@ -1,7 +1,14 @@
-from dataclasses import dataclass, field
-from typing import Any, Optional, Annotated
-import operator
+"""State management for the company research agent.
 
+This module defines the state classes used by the LangGraph agent, including
+input/output states and the main OverallState that tracks conversation history,
+research progress, and token usage for dynamic summarization.
+"""
+import operator
+from dataclasses import dataclass, field
+from typing import Annotated, Any, Optional
+
+from langchain_core.messages import BaseMessage
 
 DEFAULT_EXTRACTION_SCHEMA = {
     "title": "CompanyInfo",
@@ -87,6 +94,15 @@ class OverallState:
     reflection_steps_taken: int = field(default=0)
     "Number of times the reflection node has been executed"
 
+    messages: Annotated[list[BaseMessage], operator.add] = field(default_factory=list)
+    "Conversation history tracking all messages exchanged during research"
+
+    summary: str = field(default="")
+    "Summary of the conversation history to preserve context when messages are trimmed"
+
+    total_tokens: int = field(default=0)
+    "Current token count of the conversation history for managing token limits"
+
 
 @dataclass(kw_only=True)
 class OutputState:
@@ -105,3 +121,4 @@ class OutputState:
 
     search_results: list[dict] = field(default=None)
     "List of search results"
+
