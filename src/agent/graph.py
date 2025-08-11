@@ -294,10 +294,68 @@ def summarize_conversation(state: OverallState) -> dict[str, Any]:
     }
 
 
+def route_from_generate_queries(
+    state: OverallState
+) -> Literal["summarize_conversation", "research_company"]:  # type: ignore
+    """Route from generate_queries - check if summarization is needed."""
+    if should_summarize(state.conversation_history):
+        return "summarize_conversation"
+    return "research_company"
+
+
+def route_from_research_company(
+    state: OverallState
+) -> Literal["summarize_conversation", "gather_notes_extract_schema"]:  # type: ignore
+    """Route from research_company - check if summarization is needed."""
+    if should_summarize(state.conversation_history):
+        return "summarize_conversation"
+    return "gather_notes_extract_schema"
+
+
+def route_from_gather_notes(
+    state: OverallState
+) -> Literal["summarize_conversation", "reflection"]:  # type: ignore
+    """Route from gather_notes_extract_schema - check if summarization is needed."""
+    if should_summarize(state.conversation_history):
+        return "summarize_conversation"
+    return "reflection"
+
+
+def route_from_summarization(
+    state: OverallState
+) -> Literal["research_company", "gather_notes_extract_schema", "reflection"]:  # type: ignore
+    """Route from summarization back to the appropriate next step."""
+    # After summarization, we need to determine where we were in the flow
+    # Check the last non-summary message to determine the next step
+    if not state.conversation_history:
+        return "research_company"
+    
+    # Look for the last non-summary message to determine flow position
+    for msg in reversed(state.conversation_history):
+        if msg.get("type") != "summary":
+            content = msg.get("content", "").lower()
+            # If we see research results, go to gather_notes
+            if "research" in content or "search" in content:
+                return "gather_notes_extract_schema"
+            # If we see queries, go to research
+            elif "quer" in content:
+                return "research_company"
+            # If we see extraction/reflection, go to reflection
+            elif "extract" in content or "reflect" in content:
+                return "reflection"
+    
+    # Default fallback
+    return "research_company"
+
+
 def route_from_reflection(
     state: OverallState, config: RunnableConfig
-) -> Literal[END, "research_company"]:  # type: ignore
+) -> Literal[END, "summarize_conversation", "research_company"]:  # type: ignore
     """Route the graph based on the reflection output."""
+    # Check if summarization is needed first
+    if should_summarize(state.conversation_history):
+        return "summarize_conversation"
+    
     # Get configuration
     configurable = Configuration.from_runnable_config(config)
 
@@ -334,6 +392,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
