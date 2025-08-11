@@ -326,25 +326,21 @@ def route_from_summarization(
 ) -> Literal["research_company", "gather_notes_extract_schema", "reflection"]:  # type: ignore
     """Route from summarization back to the appropriate next step."""
     # After summarization, we need to determine where we were in the flow
-    # Check the last non-summary message to determine the next step
-    if not state.conversation_history:
+    # Use state fields to determine the appropriate next step
+    
+    # If we have search queries but no research results, go to research
+    if state.search_queries and not state.research_results:
         return "research_company"
     
-    # Look for the last non-summary message to determine flow position
-    for msg in reversed(state.conversation_history):
-        if msg.get("type") != "summary":
-            content = msg.get("content", "").lower()
-            # If we see research results, go to gather_notes
-            if "research" in content or "search" in content:
-                return "gather_notes_extract_schema"
-            # If we see queries, go to research
-            elif "quer" in content:
-                return "research_company"
-            # If we see extraction/reflection, go to reflection
-            elif "extract" in content or "reflect" in content:
-                return "reflection"
+    # If we have research results but haven't extracted schema yet, go to gather_notes
+    if state.research_results and not state.extracted_info:
+        return "gather_notes_extract_schema"
     
-    # Default fallback
+    # If we have extracted info but haven't reflected yet, or need more reflection, go to reflection
+    if state.extracted_info:
+        return "reflection"
+    
+    # Default fallback - start research process
     return "research_company"
 
 
@@ -393,6 +389,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
