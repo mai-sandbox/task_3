@@ -77,6 +77,12 @@ class OverallState:
     completed_notes: Annotated[list, operator.add] = field(default_factory=list)
     "Notes from completed research related to the schema"
 
+    conversation_history: Annotated[list[dict], operator.add] = field(default_factory=list)
+    "All messages exchanged during the workflow (inputs/outputs, system msgs). Each message should be a dict with at minimum: {'role': str, 'content': str, 'timestamp': str}."
+
+    total_tokens: int = field(default=0)
+    "Approximate token count of conversation_history (4 chars ≈ 1 token)."
+
     info: dict[str, Any] = field(default=None)
     """
     A dictionary containing the extracted and processed information
@@ -108,6 +114,7 @@ class OutputState:
 
     search_results: list[dict] = field(default=None)
     "List of search results"
+
 
 
 
