@@ -215,6 +215,15 @@ async def research_company(
 
 def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
     """Gather notes from the web search and extract the schema fields."""
+    timestamp = datetime.now().isoformat()
+    
+    # Track extraction process start in conversation history
+    extraction_start_msg = {
+        "role": "assistant",
+        "content": f"Processing research notes and extracting structured information for {state.company}",
+        "timestamp": timestamp,
+        "type": "extraction_start"
+    }
 
     # Format all notes
     notes = format_all_notes(state.completed_notes)
@@ -233,7 +242,25 @@ def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
             },
         ]
     )
-    return {"info": result}
+    
+    # Track extraction results in conversation history
+    extraction_results_msg = {
+        "role": "assistant",
+        "content": f"Extracted structured information: {json.dumps(result, indent=2)[:300]}...",
+        "timestamp": timestamp,
+        "type": "extraction_results",
+        "extracted_fields": list(result.keys()) if hasattr(result, 'keys') else []
+    }
+    
+    # Update conversation history and calculate new token count
+    new_conversation_history = [extraction_start_msg, extraction_results_msg]
+    new_token_count = count_tokens(state.conversation_history + new_conversation_history)
+    
+    return {
+        "info": result,
+        "conversation_history": new_conversation_history,
+        "total_tokens": new_token_count
+    }
 
 
 def reflection(state: OverallState) -> dict[str, Any]:
@@ -441,6 +468,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
