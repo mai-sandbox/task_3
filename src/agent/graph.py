@@ -147,6 +147,16 @@ async def research_company(
     1. Executes concurrent web searches using the Tavily API
     2. Deduplicates and formats the search results
     """
+    timestamp = datetime.now().isoformat()
+    
+    # Track search execution in conversation history
+    search_start_msg = {
+        "role": "assistant",
+        "content": f"Executing web searches for queries: {', '.join(state.search_queries)}",
+        "timestamp": timestamp,
+        "type": "search_execution",
+        "queries": state.search_queries
+    }
 
     # Get configuration
     configurable = Configuration.from_runnable_config(config)
@@ -181,8 +191,21 @@ async def research_company(
         user_notes=state.user_notes,
     )
     result = await claude_3_5_sonnet.ainvoke(p)
+    
+    # Track research results in conversation history
+    research_results_msg = {
+        "role": "assistant",
+        "content": f"Research completed. Found {len(deduplicated_search_docs)} sources. Generated research notes: {str(result.content)[:200]}...",
+        "timestamp": timestamp,
+        "type": "research_results",
+        "sources_count": len(deduplicated_search_docs),
+        "notes_preview": str(result.content)[:500]
+    }
+    
     state_update = {
         "completed_notes": [str(result.content)],
+        "conversation_history": [search_start_msg, research_results_msg],
+        "total_tokens": count_tokens(state.conversation_history + [search_start_msg, research_results_msg])
     }
     if configurable.include_search_results:
         state_update["search_results"] = deduplicated_search_docs
@@ -418,6 +441,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
