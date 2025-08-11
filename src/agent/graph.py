@@ -385,13 +385,15 @@ builder.add_node("reflection", reflection)
 builder.add_node("summarize_conversation", summarize_conversation)
 
 builder.add_edge(START, "generate_queries")
-builder.add_edge("generate_queries", "research_company")
-builder.add_edge("research_company", "gather_notes_extract_schema")
-builder.add_edge("gather_notes_extract_schema", "reflection")
+builder.add_conditional_edges("generate_queries", route_from_generate_queries)
+builder.add_conditional_edges("research_company", route_from_research_company)
+builder.add_conditional_edges("gather_notes_extract_schema", route_from_gather_notes)
+builder.add_conditional_edges("summarize_conversation", route_from_summarization)
 builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
