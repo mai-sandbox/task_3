@@ -345,6 +345,7 @@ builder.add_node("gather_notes_extract_schema", gather_notes_extract_schema)
 builder.add_node("generate_queries", generate_queries)
 builder.add_node("research_company", research_company)
 builder.add_node("reflection", reflection)
+builder.add_node("summarize_conversation", summarize_conversation)
 
 builder.add_edge(START, "generate_queries")
 builder.add_edge("generate_queries", "research_company")
@@ -354,6 +355,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
