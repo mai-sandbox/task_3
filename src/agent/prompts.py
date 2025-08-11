@@ -79,6 +79,7 @@ Analyze if all required fields are present and sufficiently populated. Consider:
 1. Are any required fields missing?
 2. Are any fields incomplete or containing uncertain information?
 3. Are there fields with placeholder values or "unknown" markers?
+"""
 
 CONVERSATION_SUMMARIZATION_PROMPT = """You are tasked with summarizing a conversation history to reduce token usage while preserving all critical information for ongoing company research.
 
@@ -114,8 +115,3 @@ CONVERSATION_SUMMARIZATION_PROMPT = """You are tasked with summarizing a convers
 - Include metadata about the original conversation scope and focus
 
 Remember: This summary will be used to continue the research process, so all business-critical information must be preserved accurately."""
-
-
-
-
-
