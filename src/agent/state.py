@@ -106,3 +106,4 @@ class OutputState:
     search_results: list[dict] = field(default=None)
     "List of search results"
 
+
