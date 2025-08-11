@@ -115,6 +115,13 @@ class OutputState:
     search_results: list[dict] = field(default=None)
     "List of search results"
 
+    conversation_history: list[dict[str, Any]] = field(default_factory=list)
+    "Final conversation history so clients can inspect or persist it outside the graph if desired."
+
+    total_tokens: int = field(default=0)
+    "Final token count estimation for observability."
+
+
 
 
 
