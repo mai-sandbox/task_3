@@ -76,6 +76,16 @@ class ConversationSummary(BaseModel):
 
 def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
     """Generate search queries based on the user input and extraction schema."""
+    timestamp = datetime.now().isoformat()
+    
+    # Track user input in conversation history
+    user_input_msg = {
+        "role": "user",
+        "content": f"Research company: {state.company}. User notes: {state.user_notes}",
+        "timestamp": timestamp,
+        "type": "user_input"
+    }
+    
     # Get configuration
     configurable = Configuration.from_runnable_config(config)
     max_search_queries = configurable.max_search_queries
@@ -107,7 +117,25 @@ def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, A
 
     # Queries
     query_list = [query for query in results.queries]
-    return {"search_queries": query_list}
+    
+    # Track generated queries in conversation history
+    queries_msg = {
+        "role": "assistant",
+        "content": f"Generated search queries: {', '.join(query_list)}",
+        "timestamp": timestamp,
+        "type": "search_queries",
+        "queries": query_list
+    }
+    
+    # Update conversation history and calculate new token count
+    new_conversation_history = [user_input_msg, queries_msg]
+    new_token_count = count_tokens(state.conversation_history + new_conversation_history)
+    
+    return {
+        "search_queries": query_list,
+        "conversation_history": new_conversation_history,
+        "total_tokens": new_token_count
+    }
 
 
 async def research_company(
@@ -390,6 +418,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
