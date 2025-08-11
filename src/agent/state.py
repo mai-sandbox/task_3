@@ -49,6 +49,9 @@ class InputState:
     user_notes: Optional[dict[str, Any]] = field(default=None)
     "Any notes from the user to start the research process."
 
+    conversation_history: Optional[list[dict[str, Any]]] = field(default=None)
+    "Optional initial conversation history provided by the caller. Each message should be a dict with at minimum: {'role': str, 'content': str}."
+
 
 @dataclass(kw_only=True)
 class OverallState:
@@ -105,5 +108,6 @@ class OutputState:
 
     search_results: list[dict] = field(default=None)
     "List of search results"
+
 
 
