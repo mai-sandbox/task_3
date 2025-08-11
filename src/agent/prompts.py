@@ -79,6 +79,42 @@ Analyze if all required fields are present and sufficiently populated. Consider:
 1. Are any required fields missing?
 2. Are any fields incomplete or containing uncertain information?
 3. Are there fields with placeholder values or "unknown" markers?
+
+CONVERSATION_SUMMARIZATION_PROMPT = """You are tasked with summarizing a conversation history to reduce token usage while preserving all critical information for ongoing company research.
+
+**CRITICAL PRESERVATION REQUIREMENTS:**
+1. **Company Research Findings**: Preserve ALL key facts, data points, financial information, business metrics, and insights discovered about the company
+2. **Search Context**: Maintain the progression of research queries and what information was sought
+3. **Conversation Flow**: Keep the logical sequence of research steps and decision-making process
+4. **Important Details**: Retain specific dates, numbers, names, locations, and other factual details
+5. **Research Gaps**: Note any missing information or areas that still need investigation
+
+**COMPANY BEING RESEARCHED:** {company}
+
+**MESSAGES TO SUMMARIZE (First 60%):**
+{messages_to_summarize}
+
+**RECENT MESSAGES TO PRESERVE (Last 40%):**
+{messages_to_preserve}
+
+**SUMMARIZATION INSTRUCTIONS:**
+- Create a comprehensive but concise summary that captures the essence of the research journey
+- Organize findings by topic/category when possible (e.g., financials, operations, market position)
+- Preserve the chronological flow of discoveries and research decisions
+- Include specific facts, figures, and data points discovered
+- Note which sources provided key information
+- Highlight any contradictions or uncertainties found
+- Maintain the context of why certain searches were performed
+- Preserve any user instructions or specific research directions
+
+**OUTPUT REQUIREMENTS:**
+- Summary should significantly reduce token count while losing no critical information
+- Key findings should be extracted as a separate list for easy reference
+- Recent messages should be preserved exactly as provided
+- Include metadata about the original conversation scope and focus
+
+Remember: This summary will be used to continue the research process, so all business-critical information must be preserved accurately."""
 """
+
 
 
