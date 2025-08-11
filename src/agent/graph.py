@@ -214,6 +214,107 @@ def reflection(state: OverallState) -> dict[str, Any]:
         }
 
 
+def summarize_conversation(state: OverallState) -> dict[str, Any]:
+    """Summarize conversation history when token limits are approached.
+    
+    Compresses the first 60% of messages into a concise summary while preserving
+    the most recent 40% intact. Maintains key company research findings and insights.
+    """
+    if not state.conversation_history:
+        return {}
+    
+    # Calculate split point: first 60% to summarize, last 40% to preserve
+    total_messages = len(state.conversation_history)
+    split_point = int(total_messages * 0.6)
+    
+    messages_to_summarize = state.conversation_history[:split_point]
+    messages_to_preserve = state.conversation_history[split_point:]
+    
+    if not messages_to_summarize:
+        # If no messages to summarize, return unchanged
+        return {}
+    
+    # We'll need the CONVERSATION_SUMMARIZATION_PROMPT from the next task
+    # For now, create a basic prompt inline
+    summarization_prompt = """You are tasked with summarizing a conversation history to reduce token usage while preserving critical information.
+
+Your task:
+1. Create a concise summary of the provided messages that preserves:
+   - Key company research findings and insights
+   - Important search queries and results
+   - Critical data points and facts discovered
+   - Overall conversation flow and context
+
+2. Extract and list the most important research findings separately
+
+3. Preserve the recent messages exactly as provided
+
+Messages to summarize:
+{messages_to_summarize}
+
+Recent messages to preserve:
+{messages_to_preserve}
+
+Company being researched: {company}
+
+Create a structured summary that maintains all critical research context while significantly reducing token count."""
+    
+    # Format messages for the prompt
+    messages_text = ""
+    for i, msg in enumerate(messages_to_summarize):
+        role = msg.get("role", "unknown")
+        content = msg.get("content", "")
+        timestamp = msg.get("timestamp", "")
+        messages_text += f"[{i+1}] {role} ({timestamp}): {content}\n\n"
+    
+    preserve_text = ""
+    for i, msg in enumerate(messages_to_preserve):
+        role = msg.get("role", "unknown") 
+        content = msg.get("content", "")
+        timestamp = msg.get("timestamp", "")
+        preserve_text += f"[{i+1}] {role} ({timestamp}): {content}\n\n"
+    
+    # Use structured output for consistent results
+    structured_llm = claude_3_5_sonnet.with_structured_output(ConversationSummary)
+    
+    # Format the prompt
+    system_prompt = summarization_prompt.format(
+        messages_to_summarize=messages_text,
+        messages_to_preserve=preserve_text,
+        company=state.company
+    )
+    
+    # Invoke the LLM
+    result = cast(
+        ConversationSummary,
+        structured_llm.invoke([
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": "Please provide a structured conversation summary."}
+        ])
+    )
+    
+    # Create the new conversation history with summary + preserved messages
+    summary_message = {
+        "role": "system",
+        "content": f"[CONVERSATION SUMMARY] {result.summary}",
+        "timestamp": "summarized",
+        "type": "summary",
+        "key_findings": result.key_findings,
+        "original_message_count": result.total_original_messages
+    }
+    
+    # Build new conversation history: summary + preserved messages
+    new_conversation_history = [summary_message] + result.preserved_messages
+    
+    # Calculate new token count
+    new_token_count = count_tokens(new_conversation_history)
+    
+    return {
+        "conversation_history": new_conversation_history,
+        "total_tokens": new_token_count
+    }
+
+
 def route_from_reflection(
     state: OverallState, config: RunnableConfig
 ) -> Literal[END, "research_company"]:  # type: ignore
@@ -253,5 +354,6 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
