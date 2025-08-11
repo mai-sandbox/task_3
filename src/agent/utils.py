@@ -88,3 +88,52 @@ Note: {idx}:
 Notes from research:
 {company_notes}"""
     return formatted_str
+
+
+def count_tokens(conversation_history: list[dict]) -> int:
+    """
+    Count approximate tokens in conversation history using 4 chars per token estimate.
+    
+    Args:
+        conversation_history: List of message dicts, each containing at minimum 'content' field
+        
+    Returns:
+        int: Approximate token count for the entire conversation history
+    """
+    if not conversation_history:
+        return 0
+    
+    total_chars = 0
+    for message in conversation_history:
+        # Count characters in the content field
+        content = message.get("content", "")
+        if content:
+            total_chars += len(str(content))
+        
+        # Also count characters in other fields like role, timestamp, etc.
+        # to get a more accurate estimate
+        for key, value in message.items():
+            if key != "content" and value:
+                total_chars += len(str(value))
+    
+    # Using rough estimate of 4 characters per token (consistent with existing code)
+    return total_chars // 4
+
+
+def should_summarize(conversation_history: list[dict], token_limit: int = 18000) -> bool:
+    """
+    Determine if conversation history should be summarized based on token count.
+    
+    Args:
+        conversation_history: List of message dicts
+        token_limit: Token threshold to trigger summarization (default 18k to leave buffer before 20k)
+        
+    Returns:
+        bool: True if conversation should be summarized, False otherwise
+    """
+    if not conversation_history:
+        return False
+    
+    current_tokens = count_tokens(conversation_history)
+    return current_tokens >= token_limit
+
