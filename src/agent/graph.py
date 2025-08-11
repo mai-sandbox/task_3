@@ -54,6 +54,24 @@ class ReflectionOutput(BaseModel):
     reasoning: str = Field(description="Brief explanation of the assessment")
 
 
+class ConversationSummary(BaseModel):
+    summary: str = Field(
+        description="Concise summary of the older messages (first 60%) that preserves key company research findings, insights, and important context"
+    )
+    preserved_messages: list[dict] = Field(
+        description="The most recent messages (last 40%) to keep intact for immediate context"
+    )
+    key_findings: list[str] = Field(
+        description="List of key company research findings and insights that must be preserved"
+    )
+    total_original_messages: int = Field(
+        description="Total number of messages in the original conversation history"
+    )
+    summary_token_count: int = Field(
+        description="Approximate token count of the summary"
+    )
+
+
 def generate_queries(state: OverallState, config: RunnableConfig) -> dict[str, Any]:
     """Generate search queries based on the user input and extraction schema."""
     # Get configuration
@@ -235,4 +253,5 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
