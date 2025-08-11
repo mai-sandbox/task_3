@@ -265,6 +265,16 @@ def gather_notes_extract_schema(state: OverallState) -> dict[str, Any]:
 
 def reflection(state: OverallState) -> dict[str, Any]:
     """Reflect on the extracted information and generate search queries to find missing information."""
+    timestamp = datetime.now().isoformat()
+    
+    # Track reflection process start in conversation history
+    reflection_start_msg = {
+        "role": "assistant",
+        "content": f"Analyzing extracted information for {state.company} to identify missing fields and assess completeness",
+        "timestamp": timestamp,
+        "type": "reflection_start"
+    }
+    
     structured_llm = claude_3_5_sonnet.with_structured_output(ReflectionOutput)
 
     # Format reflection prompt
@@ -284,13 +294,48 @@ def reflection(state: OverallState) -> dict[str, Any]:
         ),
     )
 
+    # Track reflection results in conversation history
     if result.is_satisfactory:
-        return {"is_satisfactory": result.is_satisfactory}
+        reflection_results_msg = {
+            "role": "assistant",
+            "content": f"Reflection complete: Information is satisfactory. All required fields are populated. Reasoning: {result.reasoning}",
+            "timestamp": timestamp,
+            "type": "reflection_results",
+            "is_satisfactory": True,
+            "reasoning": result.reasoning
+        }
+        
+        # Update conversation history and calculate new token count
+        new_conversation_history = [reflection_start_msg, reflection_results_msg]
+        new_token_count = count_tokens(state.conversation_history + new_conversation_history)
+        
+        return {
+            "is_satisfactory": result.is_satisfactory,
+            "conversation_history": new_conversation_history,
+            "total_tokens": new_token_count
+        }
     else:
+        reflection_results_msg = {
+            "role": "assistant",
+            "content": f"Reflection complete: Information needs improvement. Missing fields: {', '.join(result.missing_fields)}. New search queries: {', '.join(result.search_queries)}. Reasoning: {result.reasoning}",
+            "timestamp": timestamp,
+            "type": "reflection_results",
+            "is_satisfactory": False,
+            "missing_fields": result.missing_fields,
+            "new_queries": result.search_queries,
+            "reasoning": result.reasoning
+        }
+        
+        # Update conversation history and calculate new token count
+        new_conversation_history = [reflection_start_msg, reflection_results_msg]
+        new_token_count = count_tokens(state.conversation_history + new_conversation_history)
+        
         return {
             "is_satisfactory": result.is_satisfactory,
             "search_queries": result.search_queries,
             "reflection_steps_taken": state.reflection_steps_taken + 1,
+            "conversation_history": new_conversation_history,
+            "total_tokens": new_token_count
         }
 
 
@@ -468,6 +513,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
