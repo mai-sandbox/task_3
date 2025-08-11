@@ -235,30 +235,8 @@ def summarize_conversation(state: OverallState) -> dict[str, Any]:
         # If no messages to summarize, return unchanged
         return {}
     
-    # We'll need the CONVERSATION_SUMMARIZATION_PROMPT from the next task
-    # For now, create a basic prompt inline
-    summarization_prompt = """You are tasked with summarizing a conversation history to reduce token usage while preserving critical information.
-
-Your task:
-1. Create a concise summary of the provided messages that preserves:
-   - Key company research findings and insights
-   - Important search queries and results
-   - Critical data points and facts discovered
-   - Overall conversation flow and context
-
-2. Extract and list the most important research findings separately
-
-3. Preserve the recent messages exactly as provided
-
-Messages to summarize:
-{messages_to_summarize}
-
-Recent messages to preserve:
-{messages_to_preserve}
-
-Company being researched: {company}
-
-Create a structured summary that maintains all critical research context while significantly reducing token count."""
+    # Use the dedicated conversation summarization prompt
+    summarization_prompt = CONVERSATION_SUMMARIZATION_PROMPT
     
     # Format messages for the prompt
     messages_text = ""
@@ -356,6 +334,7 @@ builder.add_conditional_edges("reflection", route_from_reflection)
 
 # Compile
 graph = builder.compile()
+
 
 
 
